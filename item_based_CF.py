@@ -108,7 +108,7 @@ df_array = ratings_movies.to_numpy()
 train_data, test_data = train_test_split(df_array, test_size=0.2, random_state=42)
 #print("Taille de train_data :", np.shape(train_data))
 #print("Taille de test_data :", np.shape(test_data))
-
+#print(test_data)
 
 
 # Créer une liste de tous les utilisateurs uniques dans train_data
@@ -136,16 +136,58 @@ for rating in train_data:
 #print(utility_matrix)
 
 # Calcul de la matrice de similarité article-article
-item_similarity = cosine_similarity(utility_matrix)
+item_similarity = cosine_similarity(utility_matrix.T)
+#item_similarity = item_similarity.T
 #print(item_similarity)
+#n_users, n_items = item_similarity.shape
+#print(n_users, n_items)
 
 # Define the number of similar users to use for prediction
 k = 5
 
 #la fonction predict
 def predict(user_id, item_id, ratings_matrix, similarity_matrix):
-    user_ratings = ratings_matrix[user_id]
-    return print(user_ratings)
+    #récupérer les indices des films notée par l'utilisateur
+    #positive_ratings_indices = [i for i in range(len(ratings_matrix[user_id])) if ratings_matrix[user_id][i] > 0]
 
-predict(0,1,utility_matrix, item_similarity)
+
+    #racupérer les similarités entre les films notées par l'utilisateur
+    #similarities = similarity_matrix[positive_ratings_indices, :]
+
+    #Extraire les similarités entre le film cible et les autres films notés par l'user
+    similarities = similarity_matrix[item_id, :]
+
+    #Sélectionner les indices des films ayant une similarité supérieure ou égale à 0.3
+    similar_movies_indices = [i for i, similarity in enumerate(similarities) if
+                              similarity >= 0.4 and i != item_id]
+
+    #récupérer les notes des filmes similaires
+    user_ratings = ratings_matrix[user_id, :]
+    similar_ratings = user_ratings[similar_movies_indices]
+    similar_ratings_list = similar_ratings.tolist()
+
+    #récupérer les similarités entre le film cible et les autres films les plus similaires
+    target_movie_similarity = item_similarity[item_id, :]
+    similar_movie_similarity = target_movie_similarity[similar_movies_indices]
+    similar_movie_similarity_list = similar_movie_similarity.tolist()
+
+    #calculer la note prédite
+    weighted_ratings = similar_ratings_list * similar_movie_similarity
+    weighted_sum = weighted_ratings.sum()
+    similarity_sum = similar_movie_similarity.sum()
+    if similarity_sum > 0 and not np.isnan(similarity_sum):
+        predicted_rating = weighted_sum / similarity_sum
+    else:
+        predicted_rating = 0 # or any other value that makes sense in your context
+
+    return predicted_rating
+
+#predict(745,1,utility_matrix, item_similarity)
+for row in test_data:
+    user_id = row[0]
+    movie_id = row[1]
+    true_rating = row[2]
+    predicted_rating = predict(user_id, movie_id, utility_matrix, item_similarity)
+    print(predicted_rating)
+
 
