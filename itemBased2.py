@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 from scipy import stats
 from sklearn.model_selection import train_test_split
 from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.neighbors import NearestNeighbors
+from scipy.sparse import csr_matrix
 
 
 # Load the MovieLens 1M dataset
@@ -92,60 +94,79 @@ mean_ratings = ratings_df.mean(axis=0)
 ratings_movies = ratings_movies.fillna(mean_ratings)
 #print(ratings_movies.isna().sum())
 
+train_df, test_df = train_test_split(ratings_movies, test_size=0.2, random_state=42)
 
-# Vérifier si les données manquantes ont été supprimées
-#print(ratings_movies.isna().sum())
-#print(ratings_movies[ratings_movies.isna().any(axis=1)])
-
-#convertir le data frame en tabelau
-df_array = ratings_movies.to_numpy()
-
-#mélanger les données
-#np.random.shuffle(df_array)
-#print(df_array)
-
-# Diviser les données en ensembles d'entraînement et de test (random_state pour que les résultats soient reproductibles)
-train_data, test_data = train_test_split(df_array, test_size=0.2, random_state=42)
-#print("Taille de train_data :", np.shape(train_data))
-#print("Taille de test_data :", np.shape(test_data))
-
-
-
-# Créer une liste de tous les utilisateurs uniques dans train_data
-users = np.unique(train_data[:, 0])
-
-# Créer une liste de tous les films uniques dans train_data
-movies = np.unique(train_data[:, 1])
-
-# Créer une matrice numpy de forme (nombre d'utilisateurs, nombre de films) remplie de zéros.
-utility_matrix = np.zeros((len(users), len(movies)))
-
-
-# Parcourir chaque élément de train_data et mettre à jour la valeur de la matrice à l'indice correspondant pour chaque utilisateur et film avec la note correspondante.
-for rating in train_data:
-    user_idx = np.where(users == rating[0])[0][0]
-    movie_idx = np.where(movies == rating[1])[0][0]
-    utility_matrix[user_idx, movie_idx] = rating[2]
-
-"""for j in range(utility_matrix.shape[1]):
-    col = utility_matrix[:, j]
-    col_mean = np.mean(col[col!=0]) # calculer la moyenne des valeurs non nulles
-    col[col==0] = col_mean # remplacer les valeurs nulles par la moyenne
-    utility_matrix[:, j] = col"""
-
+# Créer une matrice d'utilité
+utility_matrix = train_df.pivot_table(values='rating', index='user_id', columns='movie_id')
 #print(utility_matrix)
 
-# Calcul de la matrice de similarité article-article
-item_similarity = cosine_similarity(utility_matrix)
-#print(item_similarity)
+item_similarity = cosine_similarity(utility_matrix.fillna(0))
+print(item_similarity)
 
-# Define the number of similar users to use for prediction
-k = 5
+"""def predict(user_id, movie_id, utility_matrix, item_similarity):
+  Fonction pour prédire la note d'un utilisateur pour un film donné en utilisant la similarité cosinus
+    user_ratings = utility_matrix.loc[user_id].fillna(0).values.reshape(1, -1)
+    similarities = item_similarity[movie_id].reshape(1, -1)
+    prediction = user_ratings.dot(similarities)/np.sum(similarities)
+    return prediction[0, 0]
 
-#la fonction predict
-def predict(user_id, item_id, ratings_matrix, similarity_matrix):
-    user_ratings = ratings_matrix[user_id]
-    return print(user_ratings)
+# Prédire les notes des utilisateurs pour les films du jeu de test
+predictions = []
+for _, row in test_df.iterrows():
+    user_id = row["user_id"]
+    movie_id = row["movie_id"]
+    rating = row["rating"]
+    predicted_rating = predict(user_id, movie_id, utility_matrix, item_similarity)
+    predictions.append((user_id, movie_id, rating, predicted_rating))
 
-predict(0,1,utility_matrix, item_similarity)
+print(predictions)"""
+
+
+"""print(utility_matrix.shape)
+
+def predict(user_id, movie_id, utility_matrix, item_similarity, k=10):
+    Fonction pour prédire la note d'un utilisateur pour un film donné en utilisant les k plus proches voisins
+    # Trouver les indices des k plus proches voisins
+    neigh = NearestNeighbors(n_neighbors=k, metric='cosine')
+    neigh.fit(item_similarity)
+    most_similar = neigh.kneighbors(X=item_similarity[movie_id].reshape(1, -1), return_distance=False)
+
+    # Extraire les notes des utilisateurs pour les films similaires
+    similar_ratings = utility_matrix.iloc[user_id, most_similar[0]].values
+
+    # Calculer la prédiction en utilisant les moyens pondérés
+    similarities = item_similarity[movie_id, most_similar[0]]
+    prediction = np.sum(similar_ratings * similarities) / np.sum(similarities)
+
+    return prediction
+
+
+predictions = []
+# Itérer sur chaque ligne de l'ensemble de test
+for index, row in test_df.iterrows():
+    user_id = row['user_id']
+    movie_id = row['movie_id']
+
+    # Faire une prédiction pour l'utilisateur et le film donnés
+    predicted_rating = predict(user_id, movie_id, utility_matrix, item_similarity)
+
+    # Ajouter la prédiction à une liste
+    predictions.append(predicted_rating)
+
+# Convertir la liste de prédictions en un tableau numpy
+predictions = np.array(predictions)
+
+# Afficher les prédictions
+print(predictions)"""
+
+
+"""utility_matrix.fillna(0, inplace=True)
+
+# Conversion en une matrice creuse CSR pour une utilisation plus efficace avec Scipy
+utility_csr = csr_matrix(utility_matrix.values)
+
+
+# Calcul de la similarité cosine entre les items
+item_similarity = cosine_similarity(utility_csr.T)
+"""
 
