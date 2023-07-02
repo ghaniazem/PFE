@@ -78,8 +78,8 @@ plt.show()
 
 
 # Répartition des notes
-fig = plt.figure(figsize=(10, 6))
-ratings_df['rating'].hist(bins=[0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5])
+fig = plt.figure(figsize=(10, 7))
+ratings_df['rating'].hist(bins=[0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5])
 plt.title('Répartition des notes')
 plt.xlabel('Note')
 plt.ylabel('Nombre d\'évaluations')
